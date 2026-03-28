@@ -30,11 +30,12 @@ whatchanged diff
 
 List all snapshots:
 ```bash
-whatchanged list
+whatchanged history
 ```
 
 ### Screenshots
-![snap](./docs/images/wc_diff.png)
+![diff](./docs/images/wc_diff.png)
+![history](./docs/images/wc_history.png)
 
 ### Architecture
 ![desing](./docs/images/whatchanged_cli_architecture.svg)
