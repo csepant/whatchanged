@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/ccontrerasi/whatchanged/output"
 	"github.com/ccontrerasi/whatchanged/provider"
 	"github.com/ccontrerasi/whatchanged/storage"
 )
@@ -30,6 +30,10 @@ func init() {
 func runSnap(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	if noColor {
+		output.SetNoColor(true)
+	}
+
 	// Load AWS config
 	opts := []func(*awsconfig.LoadOptions) error{
 		awsconfig.WithRegion(getRegion()),
@@ -46,28 +50,39 @@ func runSnap(cmd *cobra.Command, args []string) error {
 	// Determine which providers to run
 	providers := getProviders()
 
-	// Fetch resources from each provider
 	var allResources []provider.Resource
 	var providerNames []string
 	counts := make(map[string]int)
+	var fetchErrors []string
 
-	for _, name := range providers {
-		p, err := provider.Get(name)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
-			continue
+	err = output.RunWithSpinner("Fetching AWS resources...", func(updateMsg func(string)) error {
+		for _, name := range providers {
+			p, err := provider.Get(name)
+			if err != nil {
+				fetchErrors = append(fetchErrors, fmt.Sprintf("Warning: %v", err))
+				continue
+			}
+
+			updateMsg(fmt.Sprintf("Fetching %s...", name))
+			resources, err := p.List(ctx, cfg)
+			if err != nil {
+				fetchErrors = append(fetchErrors, fmt.Sprintf("Error fetching %s: %v", name, err))
+				continue
+			}
+
+			allResources = append(allResources, resources...)
+			providerNames = append(providerNames, name)
+			counts[name] = len(resources)
 		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
-		fmt.Fprintf(os.Stderr, "Fetching %s...\n", name)
-		resources, err := p.List(ctx, cfg)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching %s: %v\n", name, err)
-			continue
-		}
-
-		allResources = append(allResources, resources...)
-		providerNames = append(providerNames, name)
-		counts[name] = len(resources)
+	// Print any warnings/errors that occurred
+	for _, e := range fetchErrors {
+		fmt.Println(e)
 	}
 
 	// Create snapshot

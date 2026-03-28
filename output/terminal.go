@@ -8,58 +8,95 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fatih/color"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/ccontrerasi/whatchanged/diff"
 )
 
+var noColor bool
+
 func init() {
-	// Respect NO_COLOR env var
 	if os.Getenv("NO_COLOR") != "" {
-		color.NoColor = true
+		noColor = true
 	}
 }
 
 // SetNoColor disables colored output.
 func SetNoColor(disabled bool) {
-	color.NoColor = disabled
+	noColor = disabled
 }
 
-// PrintDiff prints a DiffResult to the writer.
-func PrintDiff(w io.Writer, result *diff.DiffResult) {
-	green := color.New(color.FgGreen)
-	red := color.New(color.FgRed)
-	yellow := color.New(color.FgYellow)
-	bold := color.New(color.Bold)
+// Styles
+var (
+	addedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")) // green
+	removedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("1")) // red
+	modifiedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6")) // cyan
+	faintStyle = lipgloss.NewStyle().Faint(true)
+	boldStyle = lipgloss.NewStyle().Bold(true)
 
+	hunkStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("6")).
+		Bold(true)
+
+	sectionStyle = lipgloss.NewStyle().
+		Bold(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderForeground(lipgloss.Color("8")).
+		MarginTop(1).
+		PaddingBottom(0)
+
+	summaryBoxStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("8")).
+		Padding(0, 1)
+
+	noChangesStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("2")).
+		Bold(true)
+)
+
+func render(s lipgloss.Style, text string) string {
+	if noColor {
+		return text
+	}
+	return s.Render(text)
+}
+
+// PrintDiff prints a DiffResult in git-diff style with lipgloss styling.
+func PrintDiff(w io.Writer, result *diff.DiffResult) {
 	// Header
-	bold.Fprintf(w, "Comparing snapshots\n")
-	fmt.Fprintf(w, "  Old: %s (%s)\n", result.OldSnapshot[:8], result.OldTimestamp.Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(w, "  New: %s (%s)\n", result.NewSnapshot[:8], result.NewTimestamp.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(w, "%s\n", render(boldStyle, fmt.Sprintf("diff snapshots %s..%s", result.OldSnapshot[:8], result.NewSnapshot[:8])))
+	fmt.Fprintf(w, "%s\n", render(faintStyle, fmt.Sprintf("--- a/ %s (%s)", result.OldSnapshot[:8], result.OldTimestamp.Format("2006-01-02 15:04:05"))))
+	fmt.Fprintf(w, "%s\n", render(faintStyle, fmt.Sprintf("+++ b/ %s (%s)", result.NewSnapshot[:8], result.NewTimestamp.Format("2006-01-02 15:04:05"))))
 	fmt.Fprintln(w)
 
 	// Summary
-	bold.Fprintf(w, "Summary: ")
-	parts := []string{}
-	if len(result.Added) > 0 {
-		parts = append(parts, green.Sprintf("%d added", len(result.Added)))
-	}
-	if len(result.Removed) > 0 {
-		parts = append(parts, red.Sprintf("%d removed", len(result.Removed)))
-	}
-	if len(result.Modified) > 0 {
-		parts = append(parts, yellow.Sprintf("%d modified", len(result.Modified)))
-	}
-	if result.Unchanged > 0 {
-		parts = append(parts, fmt.Sprintf("%d unchanged", result.Unchanged))
-	}
-
 	if !result.HasChanges() {
-		green.Fprintln(w, "No changes detected")
+		fmt.Fprintln(w, render(noChangesStyle, "  No changes detected"))
 		return
 	}
 
-	fmt.Fprintln(w, strings.Join(parts, ", "))
+	var parts []string
+	if len(result.Added) > 0 {
+		parts = append(parts, render(addedStyle, fmt.Sprintf("%d added", len(result.Added))))
+	}
+	if len(result.Removed) > 0 {
+		parts = append(parts, render(removedStyle, fmt.Sprintf("%d removed", len(result.Removed))))
+	}
+	if len(result.Modified) > 0 {
+		parts = append(parts, render(modifiedStyle, fmt.Sprintf("%d modified", len(result.Modified))))
+	}
+	if result.Unchanged > 0 {
+		parts = append(parts, render(faintStyle, fmt.Sprintf("%d unchanged", result.Unchanged)))
+	}
+
+	summary := fmt.Sprintf("  %s", strings.Join(parts, "  ·  "))
+	if noColor {
+		fmt.Fprintln(w, summary)
+	} else {
+		fmt.Fprintln(w, summaryBoxStyle.Render(strings.Join(parts, "  ·  ")))
+	}
 	fmt.Fprintln(w)
 
 	// Group by resource type
@@ -71,29 +108,44 @@ func PrintDiff(w io.Writer, result *diff.DiffResult) {
 	sort.Strings(types)
 
 	for _, resType := range types {
-		bold.Fprintf(w, "── %s ──\n", resType)
+		// Section header
+		fmt.Fprintln(w, render(sectionStyle, fmt.Sprintf(" %s ", resType)))
 
 		for _, rd := range added[resType] {
-			name := resourceName(rd)
-			green.Fprintf(w, "  + %s %s", rd.Resource.ID, name)
-			printKeyProps(w, rd)
+			printHunkHeader(w, "added", rd)
+			for _, key := range sortedKeys(rd.Resource.Properties) {
+				fmt.Fprintf(w, "%s\n", render(addedStyle, fmt.Sprintf("+ %s: %s", key, rd.Resource.Properties[key])))
+			}
+			for _, key := range sortedKeys(rd.Resource.Tags) {
+				fmt.Fprintf(w, "%s\n", render(addedStyle, fmt.Sprintf("+ tag:%s: %s", key, rd.Resource.Tags[key])))
+			}
 			fmt.Fprintln(w)
 		}
 
 		for _, rd := range removed[resType] {
-			name := resourceName(rd)
-			red.Fprintf(w, "  - %s %s\n", rd.Resource.ID, name)
+			printHunkHeader(w, "removed", rd)
+			for _, key := range sortedKeys(rd.Resource.Properties) {
+				fmt.Fprintf(w, "%s\n", render(removedStyle, fmt.Sprintf("- %s: %s", key, rd.Resource.Properties[key])))
+			}
+			for _, key := range sortedKeys(rd.Resource.Tags) {
+				fmt.Fprintf(w, "%s\n", render(removedStyle, fmt.Sprintf("- tag:%s: %s", key, rd.Resource.Tags[key])))
+			}
+			fmt.Fprintln(w)
 		}
 
 		for _, rd := range modified[resType] {
-			name := resourceName(rd)
-			yellow.Fprintf(w, "  ~ %s %s\n", rd.Resource.ID, name)
-			for _, change := range rd.Changes {
-				fmt.Fprintf(w, "      %s: %s → %s\n", change.Property, change.OldValue, change.NewValue)
+			printHunkHeader(w, "modified", rd)
+			sortedChanges := make([]diff.PropertyChange, len(rd.Changes))
+			copy(sortedChanges, rd.Changes)
+			sort.Slice(sortedChanges, func(i, j int) bool {
+				return sortedChanges[i].Property < sortedChanges[j].Property
+			})
+			for _, change := range sortedChanges {
+				fmt.Fprintf(w, "%s\n", render(removedStyle, fmt.Sprintf("- %s: %s", change.Property, change.OldValue)))
+				fmt.Fprintf(w, "%s\n", render(addedStyle, fmt.Sprintf("+ %s: %s", change.Property, change.NewValue)))
 			}
+			fmt.Fprintln(w)
 		}
-
-		fmt.Fprintln(w)
 	}
 }
 
@@ -104,27 +156,34 @@ func PrintDiffJSON(w io.Writer, result *diff.DiffResult) error {
 	return enc.Encode(result)
 }
 
+func printHunkHeader(w io.Writer, changeType string, rd diff.ResourceDiff) {
+	name := resourceName(rd)
+	var header string
+	if name != "" {
+		header = fmt.Sprintf("@@ %s %s %s @@", rd.Resource.ID, name, changeType)
+	} else {
+		header = fmt.Sprintf("@@ %s %s @@", rd.Resource.ID, changeType)
+	}
+	fmt.Fprintln(w, render(hunkStyle, header))
+}
+
 func resourceName(rd diff.ResourceDiff) string {
 	if name, ok := rd.Resource.Tags["Name"]; ok {
-		return fmt.Sprintf("(%s)", name)
+		return name
 	}
 	if name, ok := rd.Resource.Properties["group_name"]; ok {
-		return fmt.Sprintf("(%s)", name)
+		return name
 	}
 	return ""
 }
 
-func printKeyProps(w io.Writer, rd diff.ResourceDiff) {
-	props := rd.Resource.Properties
-	var parts []string
-	for _, key := range []string{"instance_type", "state"} {
-		if v, ok := props[key]; ok && v != "" {
-			parts = append(parts, fmt.Sprintf("%s=%s", key, v))
-		}
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
 	}
-	if len(parts) > 0 {
-		fmt.Fprintf(w, " [%s]", strings.Join(parts, ", "))
-	}
+	sort.Strings(keys)
+	return keys
 }
 
 func groupByType(diffs []diff.ResourceDiff) map[string][]diff.ResourceDiff {

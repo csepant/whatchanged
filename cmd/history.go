@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ccontrerasi/whatchanged/output"
 )
 
 var historyLimit int
@@ -21,6 +24,10 @@ func init() {
 }
 
 func runHistory(cmd *cobra.Command, args []string) error {
+	if noColor {
+		output.SetNoColor(true)
+	}
+
 	store, err := newStorage()
 	if err != nil {
 		return err
@@ -37,21 +44,20 @@ func runHistory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-10s %-20s %-12s %-10s %s\n", "ID", "DATE", "PROVIDERS", "RESOURCES", "PROFILE/REGION")
-	fmt.Printf("%-10s %-20s %-12s %-10s %s\n",
-		strings.Repeat("-", 10), strings.Repeat("-", 20), strings.Repeat("-", 12),
-		strings.Repeat("-", 10), strings.Repeat("-", 20))
-
-	for _, m := range metas {
-		fmt.Printf("%-10s %-20s %-12d %-10d %s/%s\n",
-			m.ID[:8],
-			m.CreatedAt.Format("2006-01-02 15:04:05"),
-			len(m.Providers),
-			m.ResourceCount,
-			m.Profile,
-			m.Region,
-		)
+	t := &output.Table{
+		Headers: []string{"ID", "DATE", "PROVIDERS", "RESOURCES", "PROFILE/REGION"},
 	}
 
+	for _, m := range metas {
+		t.Rows = append(t.Rows, []string{
+			m.ID[:8],
+			m.CreatedAt.Format("2006-01-02 15:04:05"),
+			strconv.Itoa(len(m.Providers)),
+			strconv.Itoa(m.ResourceCount),
+			m.Profile + "/" + m.Region,
+		})
+	}
+
+	t.Print(os.Stdout)
 	return nil
 }

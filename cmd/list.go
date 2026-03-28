@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/ccontrerasi/whatchanged/output"
 	"github.com/ccontrerasi/whatchanged/provider"
 )
 
@@ -23,23 +26,27 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	if noColor {
+		output.SetNoColor(true)
+	}
+
 	if listSnapshots {
 		return listSavedSnapshots()
 	}
 
-	// List providers
 	names := provider.Names()
 	if len(names) == 0 {
 		fmt.Println("No providers registered.")
 		return nil
 	}
 
-	fmt.Printf("%-25s %s\n", "PROVIDER", "TYPE")
-	fmt.Printf("%-25s %s\n", strings.Repeat("-", 25), strings.Repeat("-", 20))
-	for _, name := range names {
-		fmt.Printf("%-25s %s\n", name, name)
+	t := &output.Table{
+		Headers: []string{"PROVIDER", "TYPE"},
 	}
-
+	for _, name := range names {
+		t.Rows = append(t.Rows, []string{name, name})
+	}
+	t.Print(os.Stdout)
 	return nil
 }
 
@@ -60,16 +67,17 @@ func listSavedSnapshots() error {
 		return nil
 	}
 
-	fmt.Printf("%-10s %-20s %-10s %s\n", "ID", "DATE", "RESOURCES", "PROVIDERS")
-	fmt.Printf("%-10s %-20s %-10s %s\n", strings.Repeat("-", 10), strings.Repeat("-", 20), strings.Repeat("-", 10), strings.Repeat("-", 30))
+	t := &output.Table{
+		Headers: []string{"ID", "DATE", "RESOURCES", "PROVIDERS"},
+	}
 	for _, m := range metas {
-		fmt.Printf("%-10s %-20s %-10d %s\n",
+		t.Rows = append(t.Rows, []string{
 			m.ID[:8],
 			m.CreatedAt.Format("2006-01-02 15:04:05"),
-			m.ResourceCount,
+			strconv.Itoa(m.ResourceCount),
 			strings.Join(m.Providers, ", "),
-		)
+		})
 	}
-
+	t.Print(os.Stdout)
 	return nil
 }
