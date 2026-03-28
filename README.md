@@ -33,6 +33,8 @@ List all snapshots:
 whatchanged list
 ```
 
+### Screenshots
+![snap](./docs/images/wc_diff.png)
 
 ### Architecture
-![desing](./docs/whatchanged_cli_architecture.svg)
+![desing](./docs/images/whatchanged_cli_architecture.svg)
