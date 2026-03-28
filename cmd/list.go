@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ccontrerasi/whatchanged/output"
-	"github.com/ccontrerasi/whatchanged/provider"
+	"github.com/csepant/whatchanged/output"
+	"github.com/csepant/whatchanged/provider"
 )
 
 var listSnapshots bool

@@ -1,4 +1,4 @@
-module github.com/ccontrerasi/whatchanged
+module github.com/csepant/whatchanged
 
 go 1.23.1
 

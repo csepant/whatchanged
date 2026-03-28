@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ccontrerasi/whatchanged/diff"
-	"github.com/ccontrerasi/whatchanged/output"
+	"github.com/csepant/whatchanged/diff"
+	"github.com/csepant/whatchanged/output"
 )
 
 var (

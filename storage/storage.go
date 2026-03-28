@@ -3,7 +3,7 @@ package storage
 import (
 	"time"
 
-	"github.com/ccontrerasi/whatchanged/provider"
+	"github.com/csepant/whatchanged/provider"
 )
 
 // Snapshot represents a point-in-time capture of AWS resources.

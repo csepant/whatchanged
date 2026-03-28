@@ -3,8 +3,8 @@ package diff
 import (
 	"time"
 
-	"github.com/ccontrerasi/whatchanged/provider"
-	"github.com/ccontrerasi/whatchanged/storage"
+	"github.com/csepant/whatchanged/provider"
+	"github.com/csepant/whatchanged/storage"
 )
 
 // DiffResult contains the full diff between two snapshots.

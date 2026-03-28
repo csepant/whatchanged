@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ccontrerasi/whatchanged/output"
+	"github.com/csepant/whatchanged/output"
 )
 
 var historyLimit int

@@ -10,7 +10,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/ccontrerasi/whatchanged/diff"
+	"github.com/csepant/whatchanged/diff"
 )
 
 var noColor bool
