@@ -14,9 +14,25 @@ whatchanged is a simple CLI tool I wanted to build in order to quickly check if 
 
 ```bash
 go install github.com/csepant/whatchanged@latest
+```
 
+### Usage
+
+Store a snapshot of your AWS configuration:
+```bash
 whatchanged snap
 ```
+
+Compare the current AWS configuration to the last snapshot:
+```bash
+whatchanged diff
+```
+
+List all snapshots:
+```bash
+whatchanged list
+```
+
 
 ### Architecture
 ![desing](./docs/whatchanged_cli_architecture.svg)
