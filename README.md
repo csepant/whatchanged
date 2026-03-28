@@ -35,7 +35,7 @@ whatchanged history
 
 ### Screenshots
 ![diff](./docs/images/wc_diff.png)
-![history](./docs/images/wc_history.png)
+![history](./docs/images/wc_hist.png)
 
 ### Architecture
 ![desing](./docs/images/whatchanged_cli_architecture.svg)
