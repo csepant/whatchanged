@@ -34,7 +34,11 @@ whatchanged history
 ```
 
 ### Screenshots
+
+#### Diff it!
 ![diff](./docs/images/wc_diff.png)
+
+#### View your snapshots
 ![history](./docs/images/wc_hist.png)
 
 ### Architecture
