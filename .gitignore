@@ -1,3 +1,7 @@
 whatchanged
 *.exe
 dist/
+
+# MACOS
+.DS_Store
+
